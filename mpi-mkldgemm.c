@@ -15,7 +15,7 @@ static int size;
 static int rank;
 
 /* common parameters */
-#define N_INNER  (400) 
+#define N_INNER  (400)
 #define N_OUTTER (2000)
 
 static double alpha = 1.0;
@@ -28,97 +28,96 @@ static int m_m = M_M;
 static int m_k = M_K;
 static int m_n = M_N;
 
-static char transa='N';
-static char transb='N';
- 
+static char transa = 'N';
+static char transb = 'N';
+
 static double flopsval = (2.0*M_M*M_K*M_N + M_K*M_N)*(double)N_INNER;
 
-struct perrank_data
-{
+struct perrank_data {
 	double *A, *B, *C;
 	int  cpuid;
 	double elapsedtime;
-  double gflops;
+	double gflops;
 };
 
 static struct perrank_data  prd;
 
-static void initprd()
+static void initprd(void)
 {
 	int i;
-	
-	prd.A = calloc( m_m*m_k, sizeof(double) );
-	prd.B = calloc( m_k*m_n, sizeof(double) );
-	prd.C = calloc( m_m*m_n, sizeof(double) );
+
+	prd.A = calloc(m_m*m_k, sizeof(double));
+	prd.B = calloc(m_k*m_n, sizeof(double));
+	prd.C = calloc(m_m*m_n, sizeof(double));
 	assert(prd.A);
 	assert(prd.B);
 	assert(prd.C);
 	prd.cpuid = sched_getcpu();
 	prd.elapsedtime = 0.0;
-
-	//printf("rank=%d cpuid=%d\n", rank, prd.cpuid);
-	//fflush(stdout);
 }
 
 
-
-static void dosomething()
+static void dosomething(void)
 {
-  int i;
-  double t1,t2;
-	
-  for (i=0; i<m_m*m_k ; ++i) prd.A[i] = 1.0;
-  for (i=0; i<m_k*m_n ; ++i) prd.B[i] = 2.0;
-  for (i=0; i<m_m*m_n ; ++i) prd.C[i] = 1.0;
+	int i;
+	double t1, t2;
 
-  t1 = MPI_Wtime();
-  for(i=0; i<N_INNER; i ++ ) { 
-    dgemm(&transa, &transb, &m_m, &m_n, &m_k, &alpha, 
-	  prd.A, &m_m, prd.B, &m_k, &beta, prd.C, &m_m);
-  }
-  t2 = MPI_Wtime();
-  prd.elapsedtime = t2-t1;
-  prd.gflops = (flopsval * 1e-9)/prd.elapsedtime;
+	for (i = 0; i < m_m*m_k ; ++i)
+		prd.A[i] = 1.0;
+	for (i = 0; i < m_k*m_n ; ++i)
+		prd.B[i] = 2.0;
+	for (i = 0; i < m_m*m_n ; ++i)
+		prd.C[i] = 1.0;
 
+	t1 = MPI_Wtime();
+	for (i = 0; i < N_INNER; i++) {
+		dgemm(&transa, &transb, &m_m, &m_n, &m_k, &alpha,
+		      prd.A, &m_m, prd.B, &m_k, &beta, prd.C, &m_m);
+	}
+	t2 = MPI_Wtime();
+	prd.elapsedtime = t2-t1;
+	prd.gflops = (flopsval * 1e-9)/prd.elapsedtime;
 }
 
 
 void set_strict_affinity(int size, int rank)
 {
-  cpu_set_t  cpuset_mask;
+	cpu_set_t  cpuset_mask;
 
-  CPU_ZERO(&cpuset_mask);
-  CPU_SET(rank, &cpuset_mask);
-  if ( sched_setaffinity(0, sizeof(cpuset_mask), &cpuset_mask) == -1 ) {
-    printf("sched_setaffinity() failed\n");
-    exit(1);
-  }
+	CPU_ZERO(&cpuset_mask);
+	CPU_SET(rank, &cpuset_mask);
+	if (sched_setaffinity(0, sizeof(cpuset_mask), &cpuset_mask) == -1) {
+		printf("sched_setaffinity() failed\n");
+		exit(1);
+	}
 }
 
 static double getuptime(void)
 {
-        FILE *fp;
-        double ret;
-        fp = fopen("/proc/uptime", "r");
-        if( fp ) {
-                char buf[80];
-                int i,l;
-                fgets(buf, sizeof(buf), fp);
-                l=strlen(buf);
-                if(l>0) {
-                        for(i=0;i<l;i++) {
-                                if(buf[i]==' ') {
-                                        buf[i]=0;
-                                        break;
-                                }
-                        }
-                        ret = atof(buf);
-                }
-        }
-        return ret;
+	FILE *fp;
+	double ret;
+
+	fp = fopen("/proc/uptime", "r");
+	if (fp) {
+		char buf[80];
+		int i, l;
+
+		fgets(buf, sizeof(buf), fp);
+		l = strlen(buf);
+		if (l > 0) {
+			for (i = 0; i < l; i++) {
+				if (buf[i] == ' ') {
+					buf[i] = 0;
+					break;
+				}
+			}
+			ret = atof(buf);
+		}
+	}
+	return ret;
 }
 
-static void  usage(const char* prog)
+static void  usage(const char *prog)
 {
 	printf("Usage: %s [options]\n", prog);
 	printf("\n");
@@ -130,114 +129,114 @@ static void  usage(const char* prog)
 
 int main(int argc, char *argv[])
 {
-  int i;
-  double *rbuf;
-  // for an output in the json format
-  char strbuf[BUFSIZ];
-  char *ptr;
-  int pos, remain;
-  int len;
-  double timeout_sec = 600.0, st;
-  int opt;
+	int i;
+	double *rbuf;
+	/* for an output in the json format */
+	char strbuf[BUFSIZ];
+	char *ptr;
+	int pos, remain;
+	int len;
+	double timeout_sec = 600.0, st;
+	int opt;
 
-  MPI_Init(NULL, NULL);
+	MPI_Init(NULL, NULL);
 
-  while((opt=getopt(argc, argv, "ht:")) != -1 ) {
-	  switch(opt) {
-	  case 'h':
-		  usage(argv[0]);
-		  exit(0);
-	  case 't':
-		  timeout_sec = atoi(optarg);
-		  break;
-	  }
-  }
+	while ((opt = getopt(argc, argv, "ht:")) != -1) {
+		switch (opt) {
+		case 'h':
+			usage(argv[0]);
+			exit(0);
+		case 't':
+			timeout_sec = atoi(optarg);
+			break;
+		}
+	}
 
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  if (rank == 0) {
-	  printf("# timeout_sec=%lf\n", timeout_sec);
-	  printf("# mpisize=%d\n",size);
-  }
+	if (rank == 0) {
+		printf("# timeout_sec=%lf\n", timeout_sec);
+		printf("# mpisize=%d\n", size);
+	}
 
-  set_strict_affinity(size, rank);
-  if (rank == 0) {
-	  printf("# set affinity\n");
-  }
+	set_strict_affinity(size, rank);
+	if (rank == 0)
+		printf("# set affinity\n");
 
-  if( rank == 0 ) {
-    rbuf = (double*)malloc(size*sizeof(double));
-    assert(rbuf);
-  }
+	if (rank == 0) {
+		rbuf = (double *)malloc(size*sizeof(double));
+		assert(rbuf);
+	}
 
+	MPI_Barrier(MPI_COMM_WORLD);
 
-  MPI_Barrier(MPI_COMM_WORLD);
+	initprd();
+	st = MPI_Wtime();
 
-  initprd();
-  st = MPI_Wtime();
-//  for(i=0; i<N_OUTTER; i++ ) {
-  while( (MPI_Wtime()-st) < timeout_sec ) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    dosomething();
+	while ((MPI_Wtime() - st) < timeout_sec) {
+		MPI_Barrier(MPI_COMM_WORLD);
+		dosomething();
 
+		MPI_Gather(&prd.gflops, 1, MPI_DOUBLE,
+			   rbuf, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    MPI_Gather(&prd.gflops, 1, MPI_DOUBLE, 
-	       rbuf, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD); 
+		if (rank == 0) {
+			int j;
+			double agg;
 
-    if(rank==0) {
-      int j;
-      double agg;
+			ptr = strbuf;
+			remain = BUFSIZ - 1;
 
-      ptr = strbuf;
-      remain=BUFSIZ-1;
+			snprintf(ptr, remain, "{ \"uptime\":%.2lf ",
+				 getuptime());
+			len = strlen(ptr);
+			ptr += len;
+			remain -= len;
 
-      snprintf(ptr, remain, "{ \"uptime\":%.2lf ", getuptime() );
-      len = strlen(ptr);
-      ptr += len;
-      remain -= len;
+			snprintf(ptr, remain, ", \"time\":%.2lf ", MPI_Wtime());
+			len = strlen(ptr);
+			ptr += len;
+			remain -= len;
 
-      snprintf(ptr, remain, ", \"time\":%.2lf ", MPI_Wtime() );
-      len = strlen(ptr);
-      ptr += len;
-      remain -= len;
+			snprintf(ptr, remain, ", \"mpisize\":%d ", size);
+			len = strlen(ptr);
+			ptr += len;
+			remain -= len;
 
-      snprintf(ptr, remain, ", \"mpisize\":%d ", size );
-      len = strlen(ptr);
-      ptr += len;
-      remain -= len;
+			/* */
+			agg = 0.0;
+			for (j = 0; j < size; j++) {
+				agg += rbuf[j];
+				snprintf(ptr, remain, ", \"dgemm%d\":%.3lf ",
+					 j, rbuf[j]);
+				len = strlen(ptr);
+				ptr += len;
+				remain -= len;
+			}
 
-      /* */
-      agg = 0.0;
-      for (j = 0;j < size;j++) {
-        agg += rbuf[j];
-	snprintf(ptr,remain, ", \"dgemm%d\":%.3lf ", j, rbuf[j] );
-	len = strlen(ptr);
-	ptr += len;
-	remain -= len;
-      }
+			snprintf(ptr, remain, ", \"dgemm_agg\":%.3lf ", agg);
+			len = strlen(ptr);
+			ptr += len;
+			remain -= len;
 
-      snprintf(ptr,remain, ", \"dgemm_agg\":%.3lf ", agg );
-      len = strlen(ptr);
-      ptr += len;
-      remain -= len;
+			snprintf(ptr, remain, "}");
+			printf("%s\n", strbuf);
+			fflush(stdout);
+			{
+				FILE *fp;
 
-      snprintf(ptr,remain, "}");
-      printf("%s\n", strbuf);
-      fflush(stdout);
-      {
-	      FILE* fp;
-	      fp = fopen("dgemmlast.log", "w");
-	      if(fp) {
-		      fprintf(fp,"%s\n", strbuf);
-		      fflush(fp);
-		      fclose(fp);
-	      }
-      }
-    }
-  }
+				fp = fopen("dgemmlast.log", "w");
+				if (fp) {
+					fprintf(fp, "%s\n", strbuf);
+					fflush(fp);
+					fclose(fp);
+				}
+			}
+		}
+	}
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Finalize();
-  return 0;
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Finalize();
+	return 0;
 }
