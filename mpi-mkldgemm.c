@@ -57,26 +57,33 @@ static void initprd(void)
 }
 
 
-static void dosomething(void)
+static void dosomething(int rank, int seq_rank)
 {
 	int i;
 	double t1, t2;
 
-	for (i = 0; i < m_m*m_k ; ++i)
-		prd.A[i] = 1.0;
-	for (i = 0; i < m_k*m_n ; ++i)
-		prd.B[i] = 2.0;
-	for (i = 0; i < m_m*m_n ; ++i)
-		prd.C[i] = 1.0;
+	if (seq_rank == -1 ||
+	    (seq_rank >= 0 && seq_rank == rank)) {
+		for (i = 0; i < m_m*m_k ; ++i)
+			prd.A[i] = 1.0;
+		for (i = 0; i < m_k*m_n ; ++i)
+			prd.B[i] = 2.0;
+		for (i = 0; i < m_m*m_n ; ++i)
+			prd.C[i] = 1.0;
 
-	t1 = MPI_Wtime();
-	for (i = 0; i < N_INNER; i++) {
-		dgemm(&transa, &transb, &m_m, &m_n, &m_k, &alpha,
-		      prd.A, &m_m, prd.B, &m_k, &beta, prd.C, &m_m);
+		t1 = MPI_Wtime();
+		for (i = 0; i < N_INNER; i++) {
+			dgemm(&transa, &transb, &m_m, &m_n, &m_k, &alpha,
+			      prd.A, &m_m, prd.B, &m_k, &beta,
+			      prd.C, &m_m);
+		}
+		t2 = MPI_Wtime();
+		prd.elapsedtime = t2-t1;
+		prd.gflops = (flopsval * 1e-9)/prd.elapsedtime;
+	} else {
+		prd.gflops = 0.0;
+		sleep(1);
 	}
-	t2 = MPI_Wtime();
-	prd.elapsedtime = t2-t1;
-	prd.gflops = (flopsval * 1e-9)/prd.elapsedtime;
 }
 
 
@@ -138,16 +145,23 @@ int main(int argc, char *argv[])
 	int len;
 	double timeout_sec = 600.0, st;
 	int opt;
+	/* If seq_rank >=0, only seq_rank does a real work
+	 * other ranks do nothing; waiting until the next sync point
+	 */
+	int seq_rank = -1;
 
 	MPI_Init(NULL, NULL);
 
-	while ((opt = getopt(argc, argv, "ht:")) != -1) {
+	while ((opt = getopt(argc, argv, "ht:s:")) != -1) {
 		switch (opt) {
 		case 'h':
 			usage(argv[0]);
 			exit(0);
 		case 't':
 			timeout_sec = atoi(optarg);
+			break;
+		case 's':
+			seq_rank = atoi(optarg);
 			break;
 		}
 	}
@@ -176,7 +190,7 @@ int main(int argc, char *argv[])
 
 	while ((MPI_Wtime() - st) < timeout_sec) {
 		MPI_Barrier(MPI_COMM_WORLD);
-		dosomething();
+		dosomething(rank, seq_rank);
 
 		MPI_Gather(&prd.gflops, 1, MPI_DOUBLE,
 			   rbuf, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
