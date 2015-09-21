@@ -82,7 +82,7 @@ static void dosomething(int rank, int seq_rank)
 		prd.gflops = (flopsval * 1e-9)/prd.elapsedtime;
 	} else {
 		prd.gflops = 0.0;
-		sleep(1);
+		//sleep(1);
 	}
 }
 
@@ -149,6 +149,7 @@ int main(int argc, char *argv[])
 	 * other ranks do nothing; waiting until the next sync point
 	 */
 	int seq_rank = -1;
+	int cnt = 0;
 
 	MPI_Init(NULL, NULL);
 
@@ -188,12 +189,17 @@ int main(int argc, char *argv[])
 	initprd();
 	st = MPI_Wtime();
 
-	while ((MPI_Wtime() - st) < timeout_sec) {
+	while (1) {
 		MPI_Barrier(MPI_COMM_WORLD);
+
+		if ((MPI_Wtime()-st) >= timeout_sec)
+			break;
+
 		dosomething(rank, seq_rank);
 
 		MPI_Gather(&prd.gflops, 1, MPI_DOUBLE,
 			   rbuf, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
 
 		if (rank == 0) {
 			int j;
