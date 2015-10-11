@@ -1,4 +1,7 @@
 mpidgemmio. Stress CPU cores with computation (dgemm), and I/O (sequential writes)
+Each core can be dedicated to either computation or I/O. By default all cores run computation.
+The balance between computation and I/O cores can be adjusted using the --numio parameter.
+The affinity of threads can be adjusted using the --affinity parameter.
 
 Usage:
     mpidgemmio (-h | --help)
@@ -9,8 +12,8 @@ Options:
     -h --help                       Show help.
     -q --quiet                      Suppress all stdout output.
     --blocks=<blocks>               Number of 4K blocks to write per I/O thread.
-    --outer=<outer>                 Number of outer loops.
-    --inner=<inner>                 Number of inner loops [default: 400].
+    --outer=<outer>                 Number of outer loops (for both compute and I/O threads).
+    --inner=<inner>                 Number of inner loops (compute threads only) [default: 400].
     --numio=<numio>                 Number of I/O threads [default: 0].
     --compute_outfile=<comp_file>   Output file for compute thread data [default: compute.txt].
     --io_outfile=<io_file>          Output file for I/O thread data [default: io.txt].

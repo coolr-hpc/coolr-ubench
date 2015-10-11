@@ -228,10 +228,13 @@ void setup_affinity(char *policy, int size, int rank, int num_io)
     } else if (strncmp(policy, POLICY_RANK_INV, strlen(policy)) == 0) {
         set_rank_affinity(size, rank, 1);
     } else if (strncmp(policy, POLICY_IOLOWTEMP, strlen(policy)) == 0) {
+        printf("WARNING: Policy: %s not implemented. Setting to none.\n", policy);
         return; //set_iolowtemp_affinity(size, rank, num_io);
     } else if (strncmp(policy, POLICY_COMPLOWTEMP, strlen(policy)) == 0) {
+        printf("WARNING: Policy: %s not implemented. Setting to none.\n", policy);
         return;
     } else if (strncmp(policy, POLICY_RANDOM, strlen(policy)) == 0) {
+        printf("WARNING: Policy: %s not implemented. Setting to none.\n", policy);
         return;
     } else if (strncmp(policy, POLICY_NONE, strlen(policy)) == 0) {
         return;
@@ -394,13 +397,13 @@ int main(int argc, char *argv[])
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    /*
+    
     out:
         MPI_Group_free(&io_gid);
         MPI_Group_free(&compute_gid);
         MPI_Comm_free(&io_comm);
         MPI_Comm_free(&compute_comm);
-     */
+     
     MPI_Finalize();
     return 0;
 }
