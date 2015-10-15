@@ -1,0 +1,28 @@
+mpidgemmio. Stress CPU cores with computation (dgemm), and I/O (sequential writes)
+Each core can be dedicated to either computation or I/O. By default all cores run computation.
+The balance between computation and I/O cores can be adjusted using the --numio parameter.
+The affinity of threads can be adjusted using the --affinity parameter.
+
+Usage:
+    mpidgemmio (-h | --help)
+    mpidgemmio --version
+    mpidgemmio --blocks=<blocks> --outer=<outer> [--inner=<inner>] [--numio=<numio>] [--compute_outfile=<comp_file>] [--io_outfile=<io_file>] [--tmpdir=<outdir>] [--gflops] [--quiet] [--affinity=<policy>]
+
+Options:
+    -h --help                       Show help.
+    -q --quiet                      Suppress all stdout output.
+    --blocks=<blocks>               Number of 4K blocks to write per I/O thread.
+    --outer=<outer>                 Number of outer loops (for both compute and I/O threads).
+    --inner=<inner>                 Number of inner loops (compute threads only) [default: 400].
+    --numio=<numio>                 Number of I/O threads [default: 0].
+    --compute_outfile=<comp_file>   Output file for compute thread data [default: compute.txt].
+    --io_outfile=<io_file>          Output file for I/O thread data [default: io.txt].
+    --tmpdir=<outdir>               I/O threads write files to this directory [default: /tmp/mpidgemmio].
+    --gflops                        For compute threads, output GFLOPS instead of execution time.
+    --affinity=<policy>             Process affinity policy. Policies are described next. [default: rank]
+                                        "rank" policy: Set affinity to cpu number that corresponds to rank number. #cpu <- #rank.
+                                        "rank_inv" policy: Like "rank" but in reverse order.
+                                        "random" policy: set affinity randomly.
+                                        "none" policy: Don't set affinity.
+                                        "iolowtemp" policy: Schedule I/O threads to cores with lower temperature.
+                                        "complowtemp" policy: Schedule compute threads to cores with lower temperature.
