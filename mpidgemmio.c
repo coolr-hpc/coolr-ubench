@@ -21,6 +21,7 @@
 static int size;
 static int rank;
 static int cpus;
+static int ioboost;
 
 #define BLOCKSIZE   (4096)
 static unsigned int inner, outer;
@@ -63,12 +64,44 @@ static struct perrank_data  prd;
 static void initprd_io(rank)
 {
 	char path[200]; 
+    int f;
 	sprintf(path, "/ramfs/io.%d", rank);
 	prd.f = open(path, O_WRONLY | O_CREAT, 0666);
 	fdatasync(prd.f);
 	posix_fadvise(prd.f, 0, 0, POSIX_FADV_DONTNEED);
+    close(prd.f);
 	prd.cpuid = sched_getcpu();
 	prd.elapsedtime = 0.0;
+
+    if (ioboost) {
+        sprintf(path, "/sys/devices/system/cpu/intel_pstate/task_boost");
+        f = open(path, O_WRONLY);
+        if (f < 0) {
+            printf("cannot open /sys/devices/system/cpu/intel_pstate/task_boost\n");
+            exit(0);
+        }
+        write(f, "1\n", 2);
+        close(f);
+    }
+}
+
+static void cleanprd_io(int rank)
+{
+    int f;
+    if (ioboost) {
+        f = open("/sys/devices/system/cpu/intel_pstate/task_boost", O_WRONLY);
+        if (f < 0) {
+            printf("cannot open /sys/devices/system/cpu/intel_pstate/task_boost\n");
+            exit(0);
+        }
+        write(f, "0\n", 2);
+        close(f);
+        printf("[%d] disabled task_boost\n", rank);
+    }
+}
+
+static void cleanprd_compute(int rank)
+{
 }
 
 static void initprd_compute(int rank)
@@ -89,6 +122,14 @@ static void initprd(int rank, int num_io)
 		return initprd_io(rank);
 	else
 		return initprd_compute(rank);
+}
+
+static void cleanprd(int rank, int num_io)
+{
+	if (rank < num_io)
+		return cleanprd_io(rank);
+	else
+		return cleanprd_compute(rank);
 }
 
 static void dosomething_io(int rank)
@@ -307,6 +348,7 @@ int main(int argc, char *argv[])
 	blocks = atol(args.blocks);
 	affinity = args.affinity;
 	tmpdir = args.tmpdir;
+    ioboost = args.ioboost;
 	flopsval = (2.0*M_M*M_K*M_N + M_K*M_N)*(double)inner;
 	cpus = get_num_cpus();
 
@@ -408,6 +450,7 @@ int main(int argc, char *argv[])
 		free(rbuf);
 
 	MPI_Barrier(MPI_COMM_WORLD);
+    cleanprd(rank, num_io);
 
 
 out:
