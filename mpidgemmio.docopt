@@ -6,7 +6,7 @@ The affinity of threads can be adjusted using the --affinity parameter.
 Usage:
     mpidgemmio (-h | --help)
     mpidgemmio --version
-    mpidgemmio --blocks=<blocks> --outer=<outer> [--inner=<inner>] [--numio=<numio>] [--compute_outfile=<comp_file>] [--io_outfile=<io_file>] [--tmpdir=<outdir>] [--gflops] [--ioboost] [--quiet] [--affinity=<policy>]
+    mpidgemmio --blocks=<blocks> --outer=<outer> [--inner=<inner>] [--numio=<numio>] [--compute_outfile=<comp_file>] [--io_outfile=<io_file>] [--tmpdir=<outdir>] [--gflops] [--ioboost] [--quiet] [--affinity=<policy>] [--read]
 
 Options:
     -h --help                       Show help.
@@ -20,6 +20,7 @@ Options:
     --tmpdir=<outdir>               I/O threads write files to this directory [default: /tmp/mpidgemmio].
     --gflops                        For compute threads, output GFLOPS instead of execution time.
     --ioboost                       Use dirty.ko boost feature.
+    --read                          Do sequential read() instead of write().
     --affinity=<policy>             Process affinity policy. Policies are described next. [default: rank]
                                         "rank" policy: Set affinity to cpu number that corresponds to rank number. #cpu <- #rank.
                                         "rank_inv" policy: Like "rank" but in reverse order.
