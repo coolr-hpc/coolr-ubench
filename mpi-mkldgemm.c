@@ -138,6 +138,8 @@ int main(int argc, char *argv[])
 {
 	int i;
 	double *rbuf;
+	FILE *fp = stdout;
+	char fn[BUFSIZ];
 	/* for an output in the json format */
 	char strbuf[BUFSIZ];
 	char *ptr;
@@ -151,9 +153,11 @@ int main(int argc, char *argv[])
 	int seq_rank = -1;
 	int cnt = 0;
 
+	fn[0] = 0;
+
 	MPI_Init(NULL, NULL);
 
-	while ((opt = getopt(argc, argv, "ht:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "ht:s:o:")) != -1) {
 		switch (opt) {
 		case 'h':
 			usage(argv[0]);
@@ -164,8 +168,12 @@ int main(int argc, char *argv[])
 		case 's':
 			seq_rank = atoi(optarg);
 			break;
+		case 'o':
+			snprintf(fn, BUFSIZ, "%s", optarg);
+			break;
 		}
 	}
+
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -173,6 +181,14 @@ int main(int argc, char *argv[])
 	if (rank == 0) {
 		printf("# timeout_sec=%lf\n", timeout_sec);
 		printf("# mpisize=%d\n", size);
+
+		if (strlen(fn) > 0) {
+			fp = fopen(fn, "w");
+			if (!fp) {
+				fprintf(stderr, "Unable to open %s", fn);
+				exit(1);
+			}
+		}
 	}
 
 	set_strict_affinity(size, rank);
@@ -208,13 +224,8 @@ int main(int argc, char *argv[])
 			ptr = strbuf;
 			remain = BUFSIZ - 1;
 
-			snprintf(ptr, remain, "{ \"uptime\":%.2lf ",
-				 getuptime());
-			len = strlen(ptr);
-			ptr += len;
-			remain -= len;
-
-			snprintf(ptr, remain, ", \"time\":%.2lf ", MPI_Wtime());
+			snprintf(ptr, remain, "{\"sample\":\"dgemm\",\"time\":%.2lf",
+				 MPI_Wtime());
 			len = strlen(ptr);
 			ptr += len;
 			remain -= len;
@@ -241,9 +252,9 @@ int main(int argc, char *argv[])
 			remain -= len;
 
 			snprintf(ptr, remain, "}");
-			printf("%s\n", strbuf);
-			fflush(stdout);
-			{
+			fprintf(fp, "%s\n", strbuf);
+			fflush(fp);
+			if (0) {
 				FILE *fp;
 
 				fp = fopen("dgemmlast.log", "w");
@@ -254,6 +265,12 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
+	}
+
+
+	if (rank == 0) {
+		if (fp != stdout)
+			fclose(fp);
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
