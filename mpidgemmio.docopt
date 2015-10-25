@@ -24,6 +24,7 @@ Options:
     --affinity=<policy>             Process affinity policy. Policies are described next. [default: rank]
                                         "rank" policy: Set affinity to cpu number that corresponds to rank number. #cpu <- #rank.
                                         "rank_inv" policy: Like "rank" but in reverse order.
+                                        "interleave" policy: interleave compute and I/O.
                                         "random" policy: set affinity randomly.
                                         "none" policy: Don't set affinity.
                                         "iolowtemp" policy: Schedule I/O threads to cores with lower temperature.

@@ -35,6 +35,7 @@ static char *affinity = NULL;
 #define POLICY_RANDOM       "random"
 #define POLICY_IOLOWTEMP    "iolowtemp"
 #define POLICY_COMPLOWTEMP  "complowtemp"
+#define POLICY_INTERLEAVE   "interleave"
 
 static double alpha = 1.0;
 static double beta = 1.0;
@@ -109,9 +110,14 @@ static void initprd_compute(int rank)
     prd.elapsedtime = 0.0;
 }
 
+static int is_io(int rank, int num_io)
+{
+    return (rank < num_io);
+}
+
 static void initprd(int rank, int num_io)
 {
-    if (rank < num_io)
+    if (is_io(rank, num_io))
         return initprd_io(rank);
     else
         return initprd_compute(rank);
@@ -119,7 +125,7 @@ static void initprd(int rank, int num_io)
 
 static void cleanprd(int rank, int num_io)
 {
-    if (rank < num_io)
+    if (is_io(rank, num_io))
         return cleanprd_io(rank);
     else
         return cleanprd_compute(rank);
@@ -195,7 +201,7 @@ static void dosomething_compute(int rank)
 
 static void dosomething(int rank, int num_io)
 {
-    if (rank < num_io)
+    if (is_io(rank, num_io))
         return dosomething_io(rank);
     else
         return dosomething_compute(rank);
@@ -217,6 +223,38 @@ void set_rank_affinity(int size, int rank, int reversed)
         exit(1);
     }
     //printf("[%d] on cpu %d\n", rank, cpu_target); 
+}
+
+int min(int a, int b)
+{
+    if (a <= b)
+        return a;
+    return b;
+}
+
+void set_interleave_affinity(int size, int rank, int num_io)
+{
+    cpu_set_t  cpuset_mask;
+    int cpu_target;
+    int num_interleave;
+
+    num_interleave = min(size-num_io, num_io);
+
+    CPU_ZERO(&cpuset_mask);
+    if (rank < num_interleave) {
+        cpu_target = rank + rank + 1;
+    } else if ((rank >= num_interleave) && (rank < num_interleave*2)) {
+        cpu_target = rank - (num_interleave*2 - rank); 
+    } else {
+        cpu_target = rank;
+    }
+
+    //printf("[%d] on cpu %d\n", rank, cpu_target); 
+    CPU_SET(cpu_target, &cpuset_mask);
+    if ( sched_setaffinity(0, sizeof(cpuset_mask), &cpuset_mask) == -1 ) {
+        printf("sched_setaffinity() failed\n");
+        exit(1);
+    }
 }
 
 //void read_cpu_temp(struct temp_map *tm, unsigned int size)
@@ -282,6 +320,8 @@ void setup_affinity(char *policy, int size, int rank, int num_io)
         set_rank_affinity(size, rank, 0);
     } else if (strncmp(policy, POLICY_RANK_INV, strlen(policy)) == 0) {
         set_rank_affinity(size, rank, 1);
+    } else if (strncmp(policy, POLICY_INTERLEAVE, strlen(policy)) == 0) {
+        set_interleave_affinity(size, rank, num_io);
     } else if (strncmp(policy, POLICY_IOLOWTEMP, strlen(policy)) == 0) {
         printf("WARNING: Policy: %s not implemented. Setting to none.\n", policy);
         return; //set_iolowtemp_affinity(size, rank, num_io);
