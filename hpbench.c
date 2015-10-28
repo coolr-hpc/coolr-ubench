@@ -67,7 +67,6 @@ void bench_float(float *sa, float *sb, unsigned int n)
 
 }
 
-
 void bench_double(double *da, double *db, unsigned int n)
 {
 	unsigned int i;
@@ -82,10 +81,6 @@ void bench_double(double *da, double *db, unsigned int n)
 		_mm256_store_pd(da + i, m1);
 	}
 }
-
-
-
-
 
 int main(int argc, char *argv[])
 {
