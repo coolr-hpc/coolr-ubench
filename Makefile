@@ -4,7 +4,13 @@
 
 CC=icc
 MPICC=mpiicc
-CFLAGS=-mkl -Wall -O2 -g
+
+RAPLREADER_DIR=../intercoolr/
+RAPLREADER_DIR=../intercoolr/
+
+CFLAGS=-mkl -Wall -O2 -g -I$(RAPLREADER_DIR)
+LDFLAGS=-L$(RAPLREADER_DIR) -lintercoolr
+
 DOCOPT=python docopt_c.py
 
 TARGETS=mpi-mkldgemm mpidgemmio hpbench mpi-hpbench
@@ -20,11 +26,11 @@ mpidgemmio: mpidgemmio.c docopt.c
 docopt.c: mpidgemmio.docopt
 	$(DOCOPT) $< -o $@
 
-hpbench : hpbench.c raplreader_qh.c
-	$(CC) -O3 -axCORE-AVX2 -Wall -o $@ $^
+hpbench : hpbench.c
+	$(CC) $(CFLAGS) -axCORE-AVX2 -o $@ $^ $(LDFLAGS)
 
-mpi-hpbench : hpbench.c raplreader_qh.c
-	$(MPICC) -O3 -axCORE-AVX2 -Wall -DENABLE_MPI -o $@ $^
+mpi-hpbench : hpbench.c
+	$(MPICC) $(CFLAGS) -axCORE-AVX2  -DENABLE_MPI -o $@ $^ $(LDFLAGS)
 
 clean:
 	rm -f $(TARGETS)

@@ -14,7 +14,7 @@
 
 #include "rdtsc.h"
 
-#include "raplreader_qh.h"
+#include "raplreader.h"
 
 
 typedef uint16_t  hp_t;
@@ -148,62 +148,73 @@ int main(int argc, char *argv[])
 	{
 		int i;
 		uint64_t st, et;
-		struct raplsample rs1, rs2;
+		struct raplreader rr;
+
 		double j[2], e, dt;
-		const double nJ = 1000.0*1000.0*1000.0;
+		const double nJ = 1e+9;
 
 		/* half */
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		read_rapl(&rs1); st = rdtsc();
+		if (rank == 0) {
+			raplreader_init(&rr);
+			raplreader_sample(&rr);
+			st = rdtsc();
+		}
 		for (i = 0; i < ntry; i++)
 			bench_hp(ha,hb,n);
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		et = rdtsc() - st; read_rapl(&rs2); diff_energy(&rs1, &rs2, j);
-		e = j[0] + j[1];
-		dt = rs2.t-rs1.t;
-		if (rank == 0)
+		if (rank == 0) {
+			et = rdtsc() - st;
+			raplreader_sample(&rr);
 			printf("half  : %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
 				et/((float)n*ntry*size),
-				e * nJ / ((float)n*ntry*size), dt, e/dt);
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+		}
 
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		read_rapl(&rs1); st = rdtsc();
+		if (rank == 0) {
+			raplreader_sample(&rr);
+			st = rdtsc();
+		}
 		for (i = 0; i < ntry; i++)
 			bench_float(sa,sb,n);
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		et = rdtsc() - st; read_rapl(&rs2); diff_energy(&rs1, &rs2, j);
-		e = j[0] + j[1];
-		dt = rs2.t-rs1.t;
-		if (rank == 0)
+		if (rank == 0) {
+			et = rdtsc() - st;
+			raplreader_sample(&rr);
 			printf("float : %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
 				et/((float)n*ntry*size),
-				e * nJ / ((float)n*ntry*size), dt, e/dt);
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+		}
+
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		read_rapl(&rs1); st = rdtsc();
+		if (rank == 0) {
+			raplreader_sample(&rr);
+			st = rdtsc();
+		}
 		for (i = 0; i < ntry; i++)
 			bench_double(da,db,n);
 
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		et = rdtsc() - st; read_rapl(&rs2); diff_energy(&rs1, &rs2, j);
-		e = j[0] + j[1];
-		dt = rs2.t-rs1.t;
-		if (rank == 0)
+		if (rank == 0) {
+			et = rdtsc() - st;
+			raplreader_sample(&rr);
 			printf("double: %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
 				et/((float)n*ntry*size),
-				e * nJ / ((float)n*ntry*size), dt, e/dt);
-
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+		}
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
