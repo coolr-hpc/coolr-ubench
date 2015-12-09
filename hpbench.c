@@ -36,47 +36,49 @@ void conv_h2s(hp_t *h, float *s)
 	_mm256_store_ps(s, m);
 }
 
-void bench_hp(hp_t *ha, hp_t *hb, unsigned int n)
+void bench_hp(hp_t *ha, hp_t *hb, hp_t *hc, unsigned int n)
 {
 	unsigned int i;
-	__m256 m1, m2;
+	__m256 m1, m2, m3;
 
 	for (i = 0; i < n; i += 8) {
 		m1 = _mm256_cvtph_ps(_mm_load_si128((__m128i*)(ha + i)));
 		m2 = _mm256_cvtph_ps(_mm_load_si128((__m128i*)(hb + i)));
+		m3 = _mm256_cvtph_ps(_mm_load_si128((__m128i*)(hc + i)));
 
-		m1 = _mm256_add_ps(m1, m2);
+		m1 = _mm256_fmadd_ps(m1, m2, m3);
 
 		_mm_store_si128((__m128i*)(ha + i), _mm256_cvtps_ph(m1, 0 ));
 	}
 }
 
-void bench_float(float *sa, float *sb, unsigned int n)
+void bench_float(float *sa, float *sb, float *sc, unsigned int n)
 {
 	unsigned int i;
-	__m256 m1, m2;
+	__m256 m1, m2, m3;
 
 	for (i = 0; i < n; i += 8) {
 		m1 = _mm256_load_ps(sa + i);
 		m2 = _mm256_load_ps(sb + i);
+		m3 = _mm256_load_ps(sc + 1);
 
-		m1 = _mm256_add_ps(m1, m2);
+		m1 = _mm256_fmadd_ps(m1, m2, m3);
 
 		_mm256_store_ps(sa + i, m1);
 	}
-
 }
 
-void bench_double(double *da, double *db, unsigned int n)
+void bench_double(double *da, double *db, double *dc, unsigned int n)
 {
 	unsigned int i;
-	__m256d m1, m2;
+	__m256d m1, m2, m3;
 
 	for (i = 0; i < n; i += 4) {
 		m1 = _mm256_load_pd(da + i);
 		m2 = _mm256_load_pd(db + i);
+		m3 = _mm256_load_pd(dc + i);
 
-		m1 = _mm256_add_pd(m1, m2);
+		m1 = _mm256_fmadd_pd(m1, m2, m3);
 
 		_mm256_store_pd(da + i, m1);
 	}
@@ -85,9 +87,9 @@ void bench_double(double *da, double *db, unsigned int n)
 int main(int argc, char *argv[])
 {
 	int n_order = 26; // 64M elements
-	double *da, *db;
-	float *sa, *sb;
-	hp_t  *ha, *hb;
+	double *da, *db, *dc;
+	float *sa, *sb, *sc;
+	hp_t  *ha, *hb, *hc;
 	unsigned int n, i;
 	int rc;
 	int ntry;
@@ -104,6 +106,9 @@ int main(int argc, char *argv[])
 	n = 1 << n_order;
 
 	ntry = (3ULL*1000*1000*1000/n);
+	if (argc > 2) {
+		ntry = atoi(argv[2]);
+	}
 
 	if (rank == 0) {
 #ifdef ENABLE_MPI
@@ -117,26 +122,38 @@ int main(int argc, char *argv[])
 	assert(rc == 0);
 	rc = posix_memalign(&db, 32, n*sizeof(double));
 	assert(rc == 0);
+	rc = posix_memalign(&dc, 32, n*sizeof(double));
+	assert(rc == 0);
+
 	rc = posix_memalign(&sa, 32, n*sizeof(float));
 	assert(rc == 0);
 	rc = posix_memalign(&sb, 32, n*sizeof(float));
 	assert(rc == 0);
+	rc = posix_memalign(&sc, 32, n*sizeof(float));
+	assert(rc == 0);
+
 	rc = posix_memalign(&ha, 32, n*sizeof(hp_t));
 	assert(rc == 0);
 	rc = posix_memalign(&hb, 32, n*sizeof(hp_t));
 	assert(rc == 0);
+	rc = posix_memalign(&hc, 32, n*sizeof(hp_t));
+	assert(rc == 0);
 	
 	/* init single precision data */
 	for (i = 0; i < n; i++ ) {
-		sa[i] = (float)(i%512);
-		sb[i] = (float)100;
+		sa[i] = (float)(i % 512);
+		sb[i] = (float)3;
+		sc[i] = 22;
+
 		da[i] = sa[i];
 		db[i] = sb[i];
+		dc[i] = sc[i];
 	}
-	/* convert to half precision data */
+	/* initialize half-precision data */
 	for (i = 0; i < n; i+=8 ) {
 		conv_s2h(sa+i, ha+i);
 		conv_s2h(sb+i, hb+i);
+		conv_s2h(sc+i, hc+i);
 	}
 
 	/* */
@@ -158,7 +175,7 @@ int main(int argc, char *argv[])
 			st = rdtsc();
 		}
 		for (i = 0; i < ntry; i++)
-			bench_hp(ha,hb,n);
+			bench_hp(ha, hb, hc, n);
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -178,7 +195,7 @@ int main(int argc, char *argv[])
 			st = rdtsc();
 		}
 		for (i = 0; i < ntry; i++)
-			bench_float(sa,sb,n);
+			bench_float(sa, sb, sc, n);
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -198,7 +215,7 @@ int main(int argc, char *argv[])
 			st = rdtsc();
 		}
 		for (i = 0; i < ntry; i++)
-			bench_double(da,db,n);
+			bench_double(da, db, dc, n);
 
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -215,14 +232,12 @@ int main(int argc, char *argv[])
 #endif
 	}
 
-
 	/* validation. */
 	if (ntry == 1) {
 		for (i = 0; i < n; i++ ) {
-			float k = (i % 512) + 100;
+			float k = (i % 512) * 3 + 22;
 			if (sa[i] != k) {
 				printf("corrupted: sa[%d]=%lf  %lf\n", i, sa[i], k);
-				exit(1);
 			}
 		}
 		for (i = 0; i < n; i+=8 ) {
@@ -230,7 +245,7 @@ int main(int argc, char *argv[])
 			int j;
 			conv_h2s(ha+i, tmp);
 			for (j = 0; j < 8; j++) {
-				float k = ((i + j) % 512) + 100;
+				float k = ((i + j) % 512) * 3 + 22;
 				if (tmp[j] != k) {
 					printf("corrupted: ha[%d]=%lf  %lf\n", i+j, tmp[j], (float)k);
 					exit(1);
