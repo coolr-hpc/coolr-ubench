@@ -124,6 +124,53 @@ int main(int argc, char *argv[])
 	assert(rc == 0);
 	rc = posix_memalign(&dc, 32, n*sizeof(double));
 	assert(rc == 0);
+	// printf("# %.1lf GB allocated for double\n", 3.0*n*8*1e-9);
+
+	/* init single precision data */
+	for (i = 0; i < n; i++ ) {
+		da[i] = (float)(i % 512);
+		db[i] = (float)3;
+		dc[i] = 22;
+	}
+
+	/* loop for double */
+	{
+		int i;
+		uint64_t st, et;
+		struct raplreader rr;
+
+		double j[2], e, dt;
+		const double nJ = 1e+9;
+
+#ifdef ENABLE_MPI
+		MPI_Barrier(MPI_COMM_WORLD);
+#endif
+		if (rank == 0) {
+			raplreader_init(&rr);
+			raplreader_sample(&rr);
+			st = rdtsc();
+		}
+		for (i = 0; i < ntry; i++)
+			bench_double(da, db, dc, n);
+
+#ifdef ENABLE_MPI
+		MPI_Barrier(MPI_COMM_WORLD);
+#endif
+		if (rank == 0) {
+			et = rdtsc() - st;
+			raplreader_sample(&rr);
+			printf("double: %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
+				et/((float)n*ntry*size),
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+		}
+#ifdef ENABLE_MPI
+		MPI_Barrier(MPI_COMM_WORLD);
+#endif
+	}
+	free(da);
+	free(db);
+	free(dc);
+
 
 	rc = posix_memalign(&sa, 32, n*sizeof(float));
 	assert(rc == 0);
@@ -138,16 +185,13 @@ int main(int argc, char *argv[])
 	assert(rc == 0);
 	rc = posix_memalign(&hc, 32, n*sizeof(hp_t));
 	assert(rc == 0);
-	
+
+
 	/* init single precision data */
 	for (i = 0; i < n; i++ ) {
 		sa[i] = (float)(i % 512);
 		sb[i] = (float)3;
 		sc[i] = 22;
-
-		da[i] = sa[i];
-		db[i] = sb[i];
-		dc[i] = sc[i];
 	}
 	/* initialize half-precision data */
 	for (i = 0; i < n; i+=8 ) {
@@ -207,29 +251,12 @@ int main(int argc, char *argv[])
 				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
 		}
 
-#ifdef ENABLE_MPI
-		MPI_Barrier(MPI_COMM_WORLD);
-#endif
-		if (rank == 0) {
-			raplreader_sample(&rr);
-			st = rdtsc();
-		}
-		for (i = 0; i < ntry; i++)
-			bench_double(da, db, dc, n);
+
 
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-		if (rank == 0) {
-			et = rdtsc() - st;
-			raplreader_sample(&rr);
-			printf("double: %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
-				et/((float)n*ntry*size),
-				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
-		}
-#ifdef ENABLE_MPI
-		MPI_Barrier(MPI_COMM_WORLD);
-#endif
+
 	}
 
 	/* validation. */
@@ -259,4 +286,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
