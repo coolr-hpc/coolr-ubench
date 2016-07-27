@@ -86,8 +86,7 @@ void bench_double(double *da, double *db, double *dc, unsigned int n)
 
 int main(int argc, char *argv[])
 {
-	//int n_order = 26; // 64M elements
-	int n_order = 28; // 256 M elements (2 GB for double)
+	int n_order = 26; // 64M elements (512 MB for double)
 	double *da, *db, *dc;
 	float *sa, *sb, *sc;
 	hp_t  *ha, *hb, *hc;
@@ -154,7 +153,8 @@ int main(int argc, char *argv[])
 		for (i = 0; i < ntry; i++)
 			bench_double(da, db, dc, n);
 
-		printf("# type, cycles/op, nJ/op, runtime [sec], power [watt], energy [J]\n");
+		if (rank == 0)
+			printf("# type, cycles/op, nJ/op, runtime [sec], power [watt], energy [J]\n");
 
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
