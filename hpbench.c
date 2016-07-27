@@ -86,7 +86,8 @@ void bench_double(double *da, double *db, double *dc, unsigned int n)
 
 int main(int argc, char *argv[])
 {
-	int n_order = 26; // 64M elements
+	//int n_order = 26; // 64M elements
+	int n_order = 28; // 256 M elements (2 GB for double)
 	double *da, *db, *dc;
 	float *sa, *sb, *sc;
 	hp_t  *ha, *hb, *hc;
@@ -153,15 +154,18 @@ int main(int argc, char *argv[])
 		for (i = 0; i < ntry; i++)
 			bench_double(da, db, dc, n);
 
+		printf("# type, cycles/op, nJ/op, runtime [sec], power [watt], energy [J]\n");
+
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
 #endif
 		if (rank == 0) {
 			et = rdtsc() - st;
 			raplreader_sample(&rr);
-			printf("double: %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
+			printf("double, %f, %lf, %lf, %lf, %lf\n",
 				et/((float)n*ntry*size),
-				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total,
+				rr.energy_total);
 		}
 #ifdef ENABLE_MPI
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -200,7 +204,7 @@ int main(int argc, char *argv[])
 		conv_s2h(sc+i, hc+i);
 	}
 
-	/* */
+	/* loop for half and single */
 	{
 		int i;
 		uint64_t st, et;
@@ -226,9 +230,10 @@ int main(int argc, char *argv[])
 		if (rank == 0) {
 			et = rdtsc() - st;
 			raplreader_sample(&rr);
-			printf("half  : %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
+			printf("half  , %f, %lf, %lf, %lf, %lf\n",
 				et/((float)n*ntry*size),
-				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total,
+				rr.energy_total );
 		}
 
 #ifdef ENABLE_MPI
@@ -246,9 +251,10 @@ int main(int argc, char *argv[])
 		if (rank == 0) {
 			et = rdtsc() - st;
 			raplreader_sample(&rr);
-			printf("float : %f [cycles/op]  e=%lf [nJ/op]  t=%lf [sec]  p=%lf [watt]\n",
+			printf("float , %f, %lf, %lf, %lf, %lf\n",
 				et/((float)n*ntry*size),
-				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total);
+				rr.energy_total * nJ / ((float)n*ntry*size), rr.delta_t[0], rr.power_total,
+				rr.energy_total );
 		}
 
 
